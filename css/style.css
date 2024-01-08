@@ -11,8 +11,9 @@
 @import url("animate.css");
 @import url("custom-animation.css");
 @import url("kursor.css");
+
 :root {
-  --primary-color: #18c42a;
+  --primary-color: rgb(44, 46, 44);
   --primary-color-rgb: 185, 142, 117;
   --primary-color2: #111;
   --primary-color2-rgb: 17, 17, 17;
