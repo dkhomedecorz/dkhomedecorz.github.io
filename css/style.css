@@ -12,7 +12,7 @@
 @import url("kursor.css");
 
 :root {
-  --primary-color: rgb(211,165,126);
+  --primary-color: rgb(211, 165, 126);
   --primary-color-rgb: 185, 142, 117;
   --primary-color2: #111;
   --primary-color2-rgb: 17, 17, 17;
@@ -5047,7 +5047,7 @@ select {
 
 .feature-box-style1 {
   position: relative;
-  background: #201f1f;
+  background: rgb(37, 37, 49);
   padding: 30px 30px 25px 30px;
   margin-bottom: 20px;
   overflow: hidden;
