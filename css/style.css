@@ -10427,7 +10427,7 @@ select {
 }
 
 /*# sourceMappingURL=style.css.map */
-@media only screen and (min-width: 400px) {
+@media only screen and (min-width: 200px) {
   .whatsapp {
     position: fixed;
     bottom: 20px;
