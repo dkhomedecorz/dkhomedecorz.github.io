@@ -209,6 +209,14 @@
         </div>
       </div>
     </section>
+    <section class="brands-scroll">
+      <h1 class="marquee-title">Brands We Use</h1>
+      <div class="marquee-container">
+        <marquee class="marquee" behavior="scrool" direction="right" scrollamount="10">
+          <div id="image-marquee"></div>
+        </marquee>
+      </div>
+    </section>
     <!-- <section>
       <div style="margin-left: 30px; margin-top: 30px">
         <h1>Our trusted partners</h1>
@@ -713,6 +721,28 @@
     <script src="js/magnific-popup.min.js"></script>
     <script src="js/backtotop.js"></script>
     <script src="js/trigger.js"></script>
+    <script>
+      // Function to load images from a folder and create marquee
+      function loadImagesFromFolder(folderPath) {
+        const imageMarquee = document.getElementById("image-marquee");
+
+        // Array of image filenames (assuming images are named sequentially)
+        const imageFilenames = ["ap.png", "cp.png", "ebco.png", "gp.jpeg", "gyproc.jpeg", "hettich.png", "saint.png"]; // Replace with your actual image filenames
+
+        // Create img elements for each image
+        imageFilenames.forEach((filename) => {
+          const img = document.createElement("img");
+          img.src = "images/brands/" + filename;
+          // alt="Image" width="400" height="300"
+          img.width = "200";
+          img.height = "300";
+          imageMarquee.appendChild(img);
+        });
+      }
+
+      // Call the function with the folder path containing images
+      loadImagesFromFolder("images");
+    </script>
     <!-- <script>
       // Function to fetch images from a folder and display them
       async function fetchAndDisplayImages() {
