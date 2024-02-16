@@ -213,7 +213,7 @@
     <section class="brands-scroll">
       <h1 class="marquee-title">Brands We Use</h1>
       <div class="marquee-container">
-        <marquee class="marquee" behavior="scrool" direction="right" scrollamount="10">
+        <marquee class="marquee" behavior="scrool" direction="right" scrollamount="15">
           <div id="image-marquee"></div>
         </marquee>
       </div>
@@ -737,6 +737,7 @@
           // alt="Image" width="400" height="300"
           img.width = "200";
           img.height = "300";
+          img.className = "image-tag";
           imageMarquee.appendChild(img);
         });
       }
