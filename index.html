@@ -215,7 +215,14 @@
     <section class="brands-scroll">
       <h1 class="marquee-title">Brands We Use</h1>
       <div class="marquee-container">
-        <marquee id="marquee" class="marquee" behavior="scrool" direction="right" scrollamount="15" scrolldelay="10">
+        <marquee
+          id="marquee"
+          class="marquee"
+          behavior="scrool"
+          direction="right"
+          scrollamount="15"
+          scrolldelay="100"
+        >
           <div class="image-marquee" id="image-marquee"></div>
         </marquee>
       </div>
@@ -765,35 +772,5 @@
       // Call the function with the folder path containing images
       loadImagesFromFolder("images");
     </script>
-    <!-- <script>
-      // Function to fetch images from a folder and display them
-      async function fetchAndDisplayImages() {
-        debugger;
-        const folderPath = "images/brands/"; // Path to your folder containing images
-        const response = await fetch(folderPath);
-        const fileNames = await response.text();
-        const imagesContainer = document.getElementById("image-container");
-        fileNames.split("\n").forEach((fileName) => {
-          if (fileName.trim() !== "") {
-            const imageUrl = folderPath + fileName.trim();
-            const imageItem = document.createElement("div");
-            imageItem.classList.add("image-item");
-            const image = document.createElement("img");
-            image.src = imageUrl;
-            image.alt = fileName;
-            imageItem.appendChild(image);
-            imagesContainer.appendChild(imageItem);
-          }
-        });
-      }
-
-      // Call the function to fetch and display images
-      fetchAndDisplayImages();
-    </script>
-    <script>
-      function myFunction() {
-        document.getElementById("demo").innerHTML = "Paragraph changed.";
-      }
-    </script> -->
   </body>
 </html>

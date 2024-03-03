@@ -349,9 +349,6 @@ img {
 }
 .image-marquee {
   display: flex;
-  /* flex-direction: row;
-  align-items: center;
-  justify-content: space-around; */
 }
 .image-tag {
   width: 200px;
