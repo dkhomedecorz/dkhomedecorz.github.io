@@ -1,0 +1,353 @@
+# Advanced Spring Boot Features for Authentication and Authorization
+
+Here's how to implement more sophisticated security features in your Spring Boot application with MongoDB:
+
+## 1. OAuth2 Resource Server Configuration
+
+**For JWT-based authentication:**
+
+```java
+@Configuration
+@EnableWebSecurity
+public class SecurityConfig {
+
+    @Bean
+    SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+        http
+            .authorizeHttpRequests(auth -> auth
+                .requestMatchers("/public/**").permitAll()
+                .anyRequest().authenticated()
+            )
+            .oauth2ResourceServer(oauth2 -> oauth2
+                .jwt(jwt -> jwt
+                    .decoder(jwtDecoder())
+                )
+            );
+        return http.build();
+    }
+
+    @Bean
+    JwtDecoder jwtDecoder() {
+        return NimbusJwtDecoder.withJwkSetUri("https://your-auth-server/.well-known/jwks.json").build();
+    }
+}
+```
+
+## 2. Reactive Security with WebFlux
+
+For reactive applications:
+
+```java
+@Configuration
+@EnableReactiveMethodSecurity
+public class SecurityConfig {
+
+    @Bean
+    SecurityWebFilterChain securityWebFilterChain(ServerHttpSecurity http) {
+        return http
+            .authorizeExchange(exchanges -> exchanges
+                .pathMatchers("/public/**").permitAll()
+                .anyExchange().authenticated()
+            )
+            .oauth2ResourceServer(oauth2 -> oauth2
+                .jwt(withDefaults())
+            )
+            .build();
+    }
+    
+    @Bean
+    ReactiveJwtDecoder jwtDecoder() {
+        return ReactiveJwtDecoders.fromIssuerLocation("https://your-auth-server");
+    }
+}
+```
+
+## 3. Custom Security Expressions
+
+Create custom security expressions for more complex authorization logic:
+
+```java
+public class CustomSecurityExpressionRoot extends SecurityExpressionRoot {
+    
+    private final AuthenticationTrustResolver trustResolver;
+    private final UserRepository userRepository;
+
+    public CustomSecurityExpressionRoot(Authentication authentication, 
+                                      UserRepository userRepository) {
+        super(authentication);
+        this.trustResolver = new AuthenticationTrustResolverImpl();
+        this.userRepository = userRepository;
+    }
+
+    public boolean isResourceOwner(String resourceId) {
+        User user = userRepository.findByUsername(getAuthentication().getName())
+            .orElseThrow(() -> new UsernameNotFoundException("User not found"));
+        
+        // Implement your ownership logic
+        return user.getOwnedResources().contains(resourceId);
+    }
+}
+```
+
+Register the expression handler:
+
+```java
+@Configuration
+@EnableGlobalMethodSecurity(prePostEnabled = true)
+public class MethodSecurityConfig extends GlobalMethodSecurityConfiguration {
+
+    @Autowired
+    private UserRepository userRepository;
+
+    @Override
+    protected MethodSecurityExpressionHandler createExpressionHandler() {
+        DefaultMethodSecurityExpressionHandler expressionHandler = 
+            new DefaultMethodSecurityExpressionHandler() {
+                @Override
+                protected SecurityExpressionRoot createSecurityExpressionRoot(
+                    Authentication authentication) {
+                    return new CustomSecurityExpressionRoot(authentication, userRepository);
+                }
+            };
+        return expressionHandler;
+    }
+}
+```
+
+Use in controllers:
+
+```java
+@PreAuthorize("@securityService.isResourceOwner(#resourceId)")
+@GetMapping("/resource/{resourceId}")
+public ResponseEntity<Resource> getResource(@PathVariable String resourceId) {
+    // ...
+}
+```
+
+## 4. Multi-Tenancy Security
+
+Implement tenant-aware security:
+
+```java
+public class TenantAwareJwtAuthenticationConverter implements Converter<Jwt, AbstractAuthenticationToken> {
+
+    @Override
+    public AbstractAuthenticationToken convert(Jwt jwt) {
+        Collection<GrantedAuthority> authorities = extractAuthorities(jwt);
+        String tenantId = jwt.getClaim("tenant_id");
+        
+        return new JwtAuthenticationToken(jwt, authorities, tenantId);
+    }
+    
+    private Collection<GrantedAuthority> extractAuthorities(Jwt jwt) {
+        // Extract authorities from JWT
+    }
+}
+```
+
+Configure in security:
+
+```java
+@Bean
+JwtAuthenticationConverter jwtAuthenticationConverter() {
+    JwtGrantedAuthoritiesConverter grantedAuthoritiesConverter = new JwtGrantedAuthoritiesConverter();
+    grantedAuthoritiesConverter.setAuthorityPrefix("ROLE_");
+    grantedAuthoritiesConverter.setAuthoritiesClaimName("roles");
+    
+    JwtAuthenticationConverter jwtAuthenticationConverter = new JwtAuthenticationConverter();
+    jwtAuthenticationConverter.setJwtGrantedAuthoritiesConverter(grantedAuthoritiesConverter);
+    jwtAuthenticationConverter.setPrincipalClaimName("preferred_username");
+    
+    return new TenantAwareJwtAuthenticationConverter(jwtAuthenticationConverter);
+}
+```
+
+## 5. Security Events Publishing
+
+Listen to security events:
+
+```java
+@Component
+public class SecurityEventListener {
+
+    private static final Logger logger = LoggerFactory.getLogger(SecurityEventListener.class);
+
+    @EventListener
+    public void onAuthenticationSuccess(AuthenticationSuccessEvent event) {
+        logger.info("Authentication success for user: {}", event.getAuthentication().getName());
+        // Additional logic (auditing, metrics, etc.)
+    }
+
+    @EventListener
+    public void onAuthenticationFailure(AbstractAuthenticationFailureEvent event) {
+        logger.warn("Authentication failure: {}", event.getException().getMessage());
+        // Additional logic (blocking after multiple attempts)
+    }
+}
+```
+
+## 6. Rate Limiting for Authentication Endpoints
+
+Protect against brute force attacks:
+
+```java
+@Configuration
+public class RateLimitConfig {
+
+    @Bean
+    public MeterRegistry meterRegistry() {
+        return new SimpleMeterRegistry();
+    }
+
+    @Bean
+    public RateLimiterRegistry rateLimiterRegistry(MeterRegistry meterRegistry) {
+        return RateLimiterRegistry.of(
+            RateLimiterConfig.custom()
+                .limitRefreshPeriod(Duration.ofMinutes(1))
+                .limitForPeriod(5)
+                .timeoutDuration(Duration.ofMillis(100))
+                .build(),
+            meterRegistry
+        );
+    }
+}
+
+@RestController
+@RequestMapping("/api/auth")
+public class AuthController {
+
+    private final RateLimiter rateLimiter;
+
+    public AuthController(RateLimiterRegistry rateLimiterRegistry) {
+        this.rateLimiter = rateLimiterRegistry.rateLimiter("authLimiter");
+    }
+
+    @PostMapping("/login")
+    public ResponseEntity<?> login(@RequestBody LoginRequest request) {
+        if (rateLimiter.acquirePermission()) {
+            // Process login
+        } else {
+            throw new ResponseStatusException(HttpStatus.TOO_MANY_REQUESTS);
+        }
+    }
+}
+```
+
+## 7. Distributed Session Management with Redis
+
+For clustered environments:
+
+```java
+@Configuration
+@EnableRedisHttpSession
+public class SessionConfig {
+
+    @Bean
+    public LettuceConnectionFactory connectionFactory() {
+        return new LettuceConnectionFactory();
+    }
+
+    @Bean
+    public HttpSessionIdResolver httpSessionIdResolver() {
+        return HeaderHttpSessionIdResolver.xAuthToken(); 
+    }
+}
+
+// Use in security config
+.sessionManagement(session -> session
+    .sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED)
+    .sessionFixation().migrateSession()
+    .maximumSessions(1)
+    .maxSessionsPreventsLogin(false)
+    .expiredUrl("/login?expired")
+)
+```
+
+## 8. Feature Flags for Security
+
+Implement dynamic security controls:
+
+```java
+@Configuration
+public class FeatureFlags {
+
+    @Bean
+    @RefreshScope
+    public FeatureFlagManager featureFlagManager() {
+        return new FeatureFlagManager();
+    }
+}
+
+@Service
+public class SecurityService {
+
+    private final FeatureFlagManager featureFlagManager;
+
+    public SecurityService(FeatureFlagManager featureFlagManager) {
+        this.featureFlagManager = featureFlagManager;
+    }
+
+    public boolean isMfaEnabled() {
+        return featureFlagManager.isEnabled("mfa_enabled");
+    }
+}
+```
+
+## 9. Security Metadata Annotations
+
+Create custom security annotations:
+
+```java
+@Target({ElementType.METHOD, ElementType.TYPE})
+@Retention(RetentionPolicy.RUNTIME)
+@PreAuthorize("hasRole('ADMIN') or @securityService.isResourceOwner(#resourceId)")
+public @interface IsAdminOrOwner {
+}
+
+// Usage:
+@IsAdminOrOwner
+@GetMapping("/resource/{resourceId}")
+public ResponseEntity<Resource> getResource(@PathVariable String resourceId) {
+    // ...
+}
+```
+
+## 10. Zero Trust Architecture Components
+
+Implement continuous verification:
+
+```java
+@Component
+public class ZeroTrustFilter extends OncePerRequestFilter {
+
+    private final DeviceVerificationService deviceService;
+    private final UserBehaviorAnalyticsService ubaService;
+
+    @Override
+    protected void doFilterInternal(HttpServletRequest request, 
+                                  HttpServletResponse response, 
+                                  FilterChain filterChain) throws ServletException, IOException {
+        
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication != null && authentication.isAuthenticated()) {
+            if (!deviceService.verifyDevice(request, authentication) ||
+                !ubaService.verifyUserBehavior(request, authentication)) {
+                SecurityContextHolder.clearContext();
+                throw new InsufficientAuthenticationException("Continuous verification failed");
+            }
+        }
+        
+        filterChain.doFilter(request, response);
+    }
+}
+```
+
+These advanced features provide:
+- Better scalability with reactive programming
+- Fine-grained authorization controls
+- Enhanced security monitoring
+- Protection against common attacks
+- Flexible security configurations
+- Support for modern architectures like Zero Trust
+
+Remember to adapt these examples to your specific requirements and always conduct thorough security testing before deploying to production.
